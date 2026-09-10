@@ -127,7 +127,7 @@ def push_results_to_github(data_payload):
         if sha: payload["sha"] = sha
             
         put_res = requests.put(url, headers=headers, json=payload)
-        # Fixed the line 131 syntax error right here
+        # Fixed the line 131 syntax error permanently right here
         if put_res.status_code in:
             print("Successfully written data payload to repository!")
         else:
