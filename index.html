@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MT Bet Tracker</title>
+    <!-- Tailwind CSS for a clean native-app look -->
+    <script src="https://jsdelivr.net"></script>
+    <!-- QRCode.js to handle kiosk scanning -->
+    <script src="https://cloudflare.com"></script>
+    <!-- Web App Manifest so you can save it to your iPhone home screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body class="bg-gray-900 text-white font-sans antialiased min-h-screen pb-12">
+
+    <!-- Header / Bankroll Display -->
+    <header class="bg-gray-800 p-5 shadow-lg sticky top-0 z-50 border-b border-gray-700">
+        <div class="flex justify-between items-center max-w-md mx-auto">
+            <div>
+                <h1 class="text-xs uppercase tracking-wider text-gray-400 font-bold">Total Bankroll</h1>
+                <p class="text-3xl font-black text-emerald-400" id="bankroll-display">$1,000.00</p>
+            </div>
+            <button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-500 active:scale-95 transition px-4 py-2 rounded-xl text-sm font-bold shadow-md">
+                🔄 Scan Odds
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-md mx-auto px-4 mt-6">
+        
+        <!-- Live +EV Edge Bets Feed -->
+        <section>
+            <h2 class="text-lg font-bold mb-3 flex items-center text-amber-400">🔥 Top +EV Value Bets</h2>
+            <div id="bets-container" class="space-y-3">
+                <!-- Example of how a found bet will look dynamically -->
+                <div class="bg-gray-800 border border-emerald-500/30 rounded-2xl p-4 shadow-md">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-md">+4.8% EV</span>
+                            <h3 class="font-bold text-lg mt-1">Montana Griz ML</h3>
+                            <p class="text-xs text-gray-400">vs Montana State • SportsBet MT: +175 (Sharp: +150)</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-gray-400 block">Suggested Stake</span>
+                            <span class="text-xl font-extrabold text-white">$42.50</span>
+                        </div>
+                    </div>
+                    <button onclick="selectBet('Montana Griz ML', 175, 42.50)" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-md active:scale-[0.98]">
+                        ⚡ Lock & Generate QR Code
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- QR Modal Display (Hidden by default) -->
+        <div id="qr-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+            <div class="bg-gray-800 border border-gray-700 w-full max-w-xs rounded-3xl p-6 text-center shadow-2xl">
+                <h3 id="qr-title" class="font-bold text-lg mb-1">Bet Selected</h3>
+                <p id="qr-details" class="text-sm text-gray-400 mb-4">$0.00 stake @ +000</p>
+                
+                <div class="bg-white p-4 rounded-2xl inline-block mb-4 shadow-inner">
+                    <div id="qrcode"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <button onclick="confirmBet()" class="w-full bg-emerald-600 py-3 rounded-xl font-bold text-sm shadow-md">
+                        ✅ I Placed This Bet (Track It)
+                    </button>
+                    <button onclick="closeModal()" class="w-full bg-gray-700 py-2 rounded-xl text-gray-300 font-medium text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Core App Logic & State
+        let bankroll = parseFloat(localStorage.getItem('bankroll')) || 1000.00;
+        let activeBet = null;
+
+        function updateBankrollUI() {
+            document.getElementById('bankroll-display').innerText = `$${bankroll.toFixed(2)}`;
+            localStorage.setItem('bankroll', bankroll);
+        }
+
+        function refreshData() {
+            alert("This button will pull the data from your Python web scraper once we set up Step 2!");
+        }
+
+        function selectBet(team, odds, stake) {
+            activeBet = { team, odds, stake };
+            document.getElementById('qr-title').innerText = team;
+            document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
+            
+            // Clear existing QR code
+            document.getElementById('qrcode').innerHTML = "";
+            
+            // Generate the QR content (We will fine-tune the exact kiosk string format later)
+            let kioskString = `SPORTSBET_MT_BET_SLIP:${team}|ODDS:${odds}|STAKE:${stake}`;
+            
+            new QRCode(document.getElementById("qrcode"), {
+                text: kioskString,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('qr-modal').classList.remove('hidden');
+        }
+
+        function confirmBet() {
+            if (activeBet) {
+                bankroll -= activeBet.stake;
+                updateBankrollUI();
+                // Future upgrade: Add to a local running ledger array
+                alert(`Bet recorded! Bankroll adjusted. Remaining: $${bankroll.toFixed(2)}`);
+                closeModal();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('qr-modal').className = 'hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50';
+            activeBet = null;
+        }
+
+        // Run UI update on startup
+        updateBankrollUI();
+    </script>
+</body>
+</html>
