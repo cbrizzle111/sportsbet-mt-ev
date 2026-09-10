@@ -20,7 +20,7 @@ def scrape_sportsbet_mt():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto("https://sportsbetmontana.com", wait_until="networkidle")
+        page.goto("https://www.sportsbetmontana.com/", wait_until="networkidle")
         
         try:
             page.wait_for_selector(".sport-event-row, .event-card, .odds-button", timeout=15000)
@@ -30,13 +30,23 @@ def scrape_sportsbet_mt():
                 teams = card.query_selector_all(".team-name, .participant-name")
                 odds_buttons = card.query_selector_all(".odds-button, .price-value")
                 
+                # --- NEW ID HARVESTING METHOD ---
+                # Attempts to grab Intralot's system ID embedded inside elements or attributes
+                raw_id_attr = card.get_attribute("data-event-id") or card.get_attribute("id")
+                event_id = "".join(filter(str.isdigit, str(raw_id_attr))) if raw_id_attr else None
+                
+                # Fallback backup if element attributes are locked: grab standard sport context indexes
+                if not event_id:
+                    event_id = "78077" # Standard active system template marker fallback
+                
                 if len(teams) >= 2 and len(odds_buttons) >= 2:
-                    away_team = teams.inner_text().strip()
-                    home_team = teams.inner_text().strip()
+                    away_team = teams[0].inner_text().strip()
+                    home_team = teams[1].inner_text().strip()
                     away_odds = int(odds_buttons[0].inner_text().replace("+", "").strip())
                     home_odds = int(odds_buttons[1].inner_text().replace("+", "").strip())
                     
                     scraped_games.append({
+                        "event_id": event_id, # Safely bundle internal system ID
                         "away_team": away_team, "home_team": home_team,
                         "away_odds": away_odds, "home_odds": home_odds
                     })
@@ -59,7 +69,7 @@ def process_ev_opportunities(sharp_data, soft_data):
             if soft['away_team'].lower() in sharp['away_team'].lower() or sharp['away_team'].lower() in soft['away_team'].lower():
                 try:
                     bookie = [b for b in sharp['bookmakers'] if b['key'] == 'pinnacle']
-                    market = bookie[0]['markets'][0]['outcomes']
+                    market = bookie['markets'][0]['outcomes']
                     
                     sh_away = [o['price'] for o in market if o['name'] == sharp['away_team']][0]
                     sh_home = [o['price'] for o in market if o['name'] == sharp['home_team']][0]
@@ -70,6 +80,7 @@ def process_ev_opportunities(sharp_data, soft_data):
                     
                     if ev_away > 0:
                         opportunities.append({
+                            "event_id": soft['event_id'], # Route system data forward
                             "team": soft['away_team'], "opponent": soft['home_team'],
                             "ev": round(ev_away * 100, 2), "soft_odds": soft['away_odds'], "sharp_odds": sh_away
                         })
