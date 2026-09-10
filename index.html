@@ -182,24 +182,32 @@
         }
 
         function selectBet(team, odds, stake) {
-            activeBet = { team, odds, stake };
-            document.getElementById('qr-title').innerText = team;
-            document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
-            document.getElementById('qrcode').innerHTML = "";
-            
-            let kioskString = `SPORTSBET_MT_BET_SLIP:${team}|ODDS:${odds}|STAKE:${stake.toFixed(2)}`;
-            
-            new QRCode(document.getElementById("qrcode"), {
-                text: kioskString,
-                width: 180,
-                height: 180,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
+    activeBet = { team, odds, stake };
+    document.getElementById('qr-title').innerText = team;
+    document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
+    document.getElementById('qrcode').innerHTML = "";
+    
+    // Fallback static numeric generator mimicking Intralot's sequence layout
+    // (SportID + Generated Game Reference + Market Option Selection Index)
+    let sportId = "53"; 
+    let generatedGameId = Math.floor(10000 + Math.random() * 90000); // 5-digit index dummy
+    let selectionIndex = team.toLowerCase().includes('away') || team.toLowerCase().includes('@') ? "2" : "1";
+    
+    // Combine numbers exactly like the sequence scanned at your terminal
+    let kioskString = `${sportId}${generatedGameId}${selectionIndex}1`;
+    
+    new QRCode(document.getElementById("qrcode"), {
+        text: kioskString,
+        width: 180,
+        height: 180,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
 
-            document.getElementById('qr-modal').classList.remove('hidden');
-        }
+    document.getElementById('qr-modal').classList.remove('hidden');
+}
+
 
         function confirmBet() {
             if (activeBet) {
