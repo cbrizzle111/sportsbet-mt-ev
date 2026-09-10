@@ -22,6 +22,15 @@
                 🔄 Pull Scraped Odds
             </button>
         </div>
+        
+        <!-- NEW Dynamic Kelly Adjustment Slider Controls -->
+        <div class="max-w-md mx-auto mt-4 pt-3 border-t border-gray-700/50">
+            <div class="flex justify-between text-xs font-bold text-gray-400 mb-1">
+                <span>Risk Management (Kelly Fraction)</span>
+                <span class="text-amber-400" id="kelly-label">Quarter-Kelly (0.25)</span>
+            </div>
+            <input type="range" id="kelly-slider" min="0.05" max="1.00" step="0.05" value="0.25" oninput="adjustKellyFraction(this.value)" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-amber-400">
+        </div>
     </header>
 
     <!-- Main Container -->
@@ -54,7 +63,7 @@
             </div>
         </section>
 
-        <!-- QR Modal Display (Hidden by default) -->
+        <!-- QR Modal Display -->
         <div id="qr-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
             <div class="bg-gray-800 border border-gray-700 w-full max-w-xs rounded-3xl p-6 text-center shadow-2xl">
                 <h3 id="qr-title" class="font-bold text-lg mb-1">Bet Selected</h3>
@@ -75,14 +84,34 @@
             </div>
         </div>
     </main>
-       <script>
+    <script>
         let bankroll = parseFloat(localStorage.getItem('bankroll')) || 1000.00;
         let betHistory = JSON.parse(localStorage.getItem('betHistory')) || [];
+        let kellyFraction = parseFloat(localStorage.getItem('kellyFraction')) || 0.25;
         let activeBet = null;
+        let currentCachedBets = []; // Holds live arrays for calculations on slider adjustments
 
         function updateBankrollUI() {
             document.getElementById('bankroll-display').innerText = `$${bankroll.toFixed(2)}`;
             localStorage.setItem('bankroll', bankroll);
+        }
+
+        function adjustKellyFraction(val) {
+            kellyFraction = parseFloat(val);
+            localStorage.setItem('kellyFraction', kellyFraction);
+            
+            // Text labeling based on standard gambling fraction strategies
+            let label = `Custom Fractional (${kellyFraction.toFixed(2)})`;
+            if (kellyFraction === 0.25) label = "Quarter-Kelly (0.25)";
+            if (kellyFraction === 0.50) label = "Half-Kelly (0.50)";
+            if (kellyFraction === 1.00) label = "Full Kelly (1.00) ⚠️";
+            
+            document.getElementById('kelly-label').innerText = label;
+            
+            // Instantly recalculate stakes for everything on screen without hitting servers
+            if (currentCachedBets.length > 0) {
+                renderBetsUI(currentCachedBets);
+            }
         }
 
         async function refreshData() {
@@ -94,8 +123,8 @@
                 const dataResponse = await fetch('live_odds.json?nocache=' + new Date().getTime());
                 if (!dataResponse.ok) throw new Error("No data payload detected.");
                 
-                const bets = await dataResponse.json();
-                renderBetsUI(bets);
+                currentCachedBets = await dataResponse.json();
+                renderBetsUI(currentCachedBets);
                 button.innerText = "🔄 Pull Scraped Odds";
                 button.disabled = false;
 
@@ -122,7 +151,9 @@
                 let evDec = bet.ev / 100;
                 let impliedP = (evDec + 1) / (bValue + 1);
                 let fullKelly = ((bValue * impliedP) - (1 - impliedP)) / bValue;
-                let safeStake = Math.max(0, bankroll * (fullKelly * 0.25));
+                
+                // Dynamically tracks the current slider value
+                let safeStake = Math.max(0, bankroll * (fullKelly * kellyFraction));
 
                 const card = document.createElement('div');
                 card.className = "bg-gray-800 border border-emerald-500/20 rounded-2xl p-4 shadow-md";
@@ -138,7 +169,6 @@
                             <span class="text-xl font-extrabold text-white">$${safeStake.toFixed(2)}</span>
                         </div>
                     </div>
-                    <!-- Safely channel the scraped internal Event ID directly into execution parameters -->
                     <button onclick="selectBet('${bet.team}', ${softOdds}, ${safeStake}, '${bet.event_id}')" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-md">
                         ⚡ Lock & Generate QR Code
                     </button>
@@ -188,11 +218,8 @@
             document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
             document.getElementById('qrcode').innerHTML = "";
             
-            // --- MODIFIED CONTINUOUS STRING KEY GENERATOR ---
-            let sportId = "53"; // Base MLB Baseball structural code identifier
+            let sportId = "53"; 
             let selectionIndex = team.toLowerCase().includes('away') || team.toLowerCase().includes('@') ? "2" : "1";
-            
-            // Build the numerical string signature precisely matched to your scanned Intralot layout
             let kioskString = `${sportId}${eventId}${selectionIndex}1`;
             
             new QRCode(document.getElementById("qrcode"), {
@@ -246,6 +273,10 @@
             activeBet = null;
         }
 
+        // Initialize Slider State on Page Startup
+        document.getElementById('kelly-slider').value = kellyFraction;
+        adjustKellyFraction(kellyFraction);
+        
         updateBankrollUI();
         renderLedgerUI();
     </script>
