@@ -3,6 +3,7 @@ name: Manual iPhone Scraper Trigger
 on:
   repository_dispatch:
     types: [trigger_scraper]
+  workflow_dispatch:
 
 jobs:
   run-scraper:
@@ -22,4 +23,7 @@ jobs:
           playwright install chromium
 
       - name: Execute Scraper Logic
+        env:
+          ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scraper.py
