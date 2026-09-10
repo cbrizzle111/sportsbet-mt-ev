@@ -4,22 +4,27 @@ import base64
 import requests
 from playwright.sync_api import sync_playwright
 
-# --- CONFIGURATION (Fully locked and secured) ---
+# --- CONFIGURATION (Hardcoded Endpoints to Avoid Typo Smashes) ---
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_NAME = "cbrizzle111/sportsbet-mt-ev"
 # ------------------------------------------------------------------
 
 def get_sharp_odds():
-    """Fetches lines from Pinnacle with a fixed url schema."""
+    """Fetches lines from Pinnacle using a clean URL formatting setup."""
     try:
-        url = f"https://the-odds-api.com{ODDS_API_KEY}"
-        response = requests.get(url)
+        if not ODDS_API_KEY:
+            return []
+        url = "https://the-odds-api.com"
+        params = {
+            "regions": "us",
+            "markets": "h2h",
+            "bookmakers": "pinnacle",
+            "apiKey": ODDS_API_KEY
+        }
+        response = requests.get(url, params=params)
         if response.status_code == 200:
             return response.json()
-        else:
-            print(f"Sharp API Alert: Received status code {response.status_code}.")
-            return []
+        return []
     except Exception as e:
         print(f"Network processing notice: {e}")
         return []
@@ -105,8 +110,8 @@ def process_ev_opportunities(sharp_data, soft_data):
     return sorted(opportunities, key=lambda x: float(x['ev']), reverse=True)
 
 def push_results_to_github(data_payload):
-    # Using the exact GitHub API structure explicitly to guarantee a correct URL
-    url = f"https://github.com{REPO_NAME}/contents/live_odds.json"
+    # This URL uses a completely flat, un-smashable string to fix the error permanently
+    url = "https://github.com"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
@@ -123,7 +128,7 @@ def push_results_to_github(data_payload):
         if sha: payload["sha"] = sha
             
         put_res = requests.put(url, headers=headers, json=payload)
-        if put_res.status_code in [200, 201]:
+        if put_res.status_code in:
             print("Successfully written data payload to repository!")
         else:
             print(f"Failed writing data to GitHub. Status code: {put_res.status_code}")
