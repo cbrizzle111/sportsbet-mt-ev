@@ -75,7 +75,6 @@
             </div>
         </div>
     </main>
-
     <script>
         let bankroll = parseFloat(localStorage.getItem('bankroll')) || 1000.00;
         let betHistory = JSON.parse(localStorage.getItem('betHistory')) || [];
@@ -123,7 +122,7 @@
                 let evDec = bet.ev / 100;
                 let impliedP = (evDec + 1) / (bValue + 1);
                 let fullKelly = ((bValue * impliedP) - (1 - impliedP)) / bValue;
-                let safeStake = Math.max(0, bankroll * (fullKelly * 0.25)); // Quarter-Kelly
+                let safeStake = Math.max(0, bankroll * (fullKelly * 0.25));
 
                 const card = document.createElement('div');
                 card.className = "bg-gray-800 border border-emerald-500/20 rounded-2xl p-4 shadow-md";
@@ -188,7 +187,6 @@
             document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
             document.getElementById('qrcode').innerHTML = "";
             
-            // Temporary QR format string
             let kioskString = `SPORTSBET_MT_BET_SLIP:${team}|ODDS:${odds}|STAKE:${stake.toFixed(2)}`;
             
             new QRCode(document.getElementById("qrcode"), {
@@ -196,3 +194,54 @@
                 width: 180,
                 height: 180,
                 colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            document.getElementById('qr-modal').classList.remove('hidden');
+        }
+
+        function confirmBet() {
+            if (activeBet) {
+                bankroll -= activeBet.stake;
+                betHistory.unshift({
+                    team: activeBet.team,
+                    odds: activeBet.odds,
+                    stake: activeBet.stake,
+                    status: 'pending',
+                    payout: 0,
+                    date: new Date().toLocaleDateString()
+                });
+
+                localStorage.setItem('betHistory', JSON.stringify(betHistory));
+                updateBankrollUI();
+                renderLedgerUI();
+                closeModal();
+            }
+        }
+
+        function resolveBet(index, outcome) {
+            let bet = betHistory[index];
+            if (outcome === 'win') {
+                let decimalMultiplier = bet.odds > 0 ? (bet.odds / 100) + 1 : (100 / Math.abs(bet.odds)) + 1;
+                bet.payout = bet.stake * (decimalMultiplier - 1);
+                bet.status = 'win';
+                bankroll += (bet.stake + bet.payout);
+            } else {
+                bet.status = 'loss';
+            }
+            localStorage.setItem('betHistory', JSON.stringify(betHistory));
+            updateBankrollUI();
+            renderLedgerUI();
+        }
+
+        function closeModal() {
+            document.getElementById('qr-modal').className = 'hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50';
+            activeBet = null;
+        }
+
+        updateBankrollUI();
+        renderLedgerUI();
+    </script>
+</body>
+</html>
