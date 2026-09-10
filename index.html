@@ -86,9 +86,59 @@
             localStorage.setItem('bankroll', bankroll);
         }
 
-        function refreshData() {
-            alert("This button will pull the data from your Python web scraper once we set up Step 2!");
+        async function refreshData() {
+    try {
+        // Fetch the compiled live data from your repository backend
+        const response = await fetch('live_odds.json');
+        if (!response.ok) throw new Error("Data not updated yet.");
+        const bets = await response.json();
+        
+        const container = document.getElementById('bets-container');
+        container.innerHTML = ""; // Clear current view
+        
+        if(bets.length === 0) {
+            container.innerHTML = `<p class="text-gray-400 text-center py-6 text-sm">No +EV edges found right now. Check back shortly!</p>`;
+            return;
         }
+
+        bets.forEach(bet => {
+            // Apply our math engine equations right inside your iPhone's UI
+            // Using a conservative Quarter-Kelly multiplier (0.25)
+            let softOdds = bet.soft_odds;
+            let decimalMultiplier = softOdds > 0 ? (softOdds / 100) + 1 : (100 / Math.abs(softOdds)) + 1;
+            let bValue = decimalMultiplier - 1;
+            
+            // Reconstruct probability from data
+            let evDec = bet.ev / 100;
+            let impliedP = (evDec + 1) / (bValue + 1);
+            let fullKelly = ((bValue * impliedP) - (1 - impliedP)) / bValue;
+            let safeStake = Math.max(0, bankroll * (fullKelly * 0.25));
+
+            const card = document.createElement('div');
+            card.className = "bg-gray-800 border border-emerald-500/20 rounded-2xl p-4 shadow-md";
+            card.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-md">+${bet.ev}% EV</span>
+                        <h3 class="font-bold text-lg mt-1">${bet.team}</h3>
+                        <p class="text-xs text-gray-400">vs ${bet.opponent} • MT Line: ${softOdds > 0 ? '+'+softOdds : softOdds} (Sharp: ${bet.sharp_odds})</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs text-gray-400 block">Suggested Stake</span>
+                        <span class="text-xl font-extrabold text-white">$${safeStake.toFixed(2)}</span>
+                    </div>
+                </div>
+                <button onclick="selectBet('${bet.team}', ${softOdds}, ${safeStake})" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-md">
+                    ⚡ Lock & Generate QR Code
+                </button>
+            `;
+            container.appendChild(card);
+        });
+    } catch (err) {
+        alert("Could not load fresh lines. Ensure your python system pipeline has executed first!");
+    }
+}
+
 
         function selectBet(team, odds, stake) {
             activeBet = { team, odds, stake };
