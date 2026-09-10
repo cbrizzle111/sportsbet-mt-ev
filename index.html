@@ -86,20 +86,91 @@
             localStorage.setItem('bankroll', bankroll);
         }
 
-        async function refreshData() {
+       async function refreshData() {
+    // ---- CONFIGURATION AREA ----
+    const GITHUB_TOKEN = "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"; 
+    const USERNAME = "cbrizzle111";
+    const REPO = "sportsbet-mt-ev";
+    // ----------------------------
+
+    const button = document.querySelector('button[onclick="refreshData()"]');
+    button.innerText = "⏳ Scraper Initialized...";
+    button.disabled = true;
+
     try {
-        // Fetch the compiled live data from your repository backend
-        const response = await fetch('live_odds.json');
-        if (!response.ok) throw new Error("Data not updated yet.");
-        const bets = await response.json();
+        // 1. Tell GitHub to wake up and run the scraper script
+        const triggerResponse = await fetch(`https://github.com{USERNAME}/${REPO}/dispatches`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ event_type: 'trigger_scraper' })
+        });
+
+        if (!triggerResponse.ok) throw new Error("Cloud sync initiation failed.");
+
+        alert("🚀 Scraper cloud running successfully! Wait roughly 60 seconds for the browser to fetch the odds, then refresh.");
         
-        const container = document.getElementById('bets-container');
-        container.innerHTML = ""; // Clear current view
-        
-        if(bets.length === 0) {
-            container.innerHTML = `<p class="text-gray-400 text-center py-6 text-sm">No +EV edges found right now. Check back shortly!</p>`;
-            return;
-        }
+        // 2. Fetch the newly generated live data file
+        setTimeout(async () => {
+            const dataResponse = await fetch('live_odds.json?nocache=' + new Date().getTime());
+            if (dataResponse.ok) {
+                const bets = await dataResponse.json();
+                renderBetsUI(bets);
+            }
+            button.innerText = "🔄 Scan Odds";
+            button.disabled = false;
+        }, 60000); // 60-second window to let Playwright run cleanly
+
+    } catch (err) {
+        alert("Trigger Error: " + err.message);
+        button.innerText = "🔄 Scan Odds";
+        button.disabled = false;
+    }
+}
+
+function renderBetsUI(bets) {
+    const container = document.getElementById('bets-container');
+    container.innerHTML = "";
+    
+    if(!bets || bets.length === 0) {
+        container.innerHTML = `<p class="text-gray-400 text-center py-6 text-sm">No +EV edges found right now.</p>`;
+        return;
+    }
+
+    bets.forEach(bet => {
+        let softOdds = bet.soft_odds;
+        let decimalMultiplier = softOdds > 0 ? (softOdds / 100) + 1 : (100 / Math.abs(softOdds)) + 1;
+        let bValue = decimalMultiplier - 1;
+        let evDec = bet.ev / 100;
+        let impliedP = (evDec + 1) / (bValue + 1);
+        let fullKelly = ((bValue * impliedP) - (1 - impliedP)) / bValue;
+        let safeStake = Math.max(0, bankroll * (fullKelly * 0.25));
+
+        const card = document.createElement('div');
+        card.className = "bg-gray-800 border border-emerald-500/20 rounded-2xl p-4 shadow-md";
+        card.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div>
+                    <span class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-md">+${bet.ev}% EV</span>
+                    <h3 class="font-bold text-lg mt-1">${bet.team}</h3>
+                    <p class="text-xs text-gray-400">vs ${bet.opponent} • MT Line: ${softOdds > 0 ? '+'+softOdds : softOdds}</p>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-gray-400 block">Suggested Stake</span>
+                    <span class="text-xl font-extrabold text-white">$${safeStake.toFixed(2)}</span>
+                </div>
+            </div>
+            <button onclick="selectBet('${bet.team}', ${softOdds}, ${safeStake})" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-md">
+                ⚡ Lock & Generate QR Code
+            </button>
+        `;
+        container.appendChild(card);
+    });
+}
+
 
         bets.forEach(bet => {
             // Apply our math engine equations right inside your iPhone's UI
