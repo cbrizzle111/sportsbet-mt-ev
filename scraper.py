@@ -4,11 +4,12 @@ import base64
 import requests
 from playwright.sync_api import sync_playwright
 
-# --- CONFIGURATION (Change these to your values) ---
-ODDS_API_KEY = "YOUR_THE_ODDS_API_KEY_HERE"  # Put your active API key here
-GITHUB_TOKEN = "YOUR_GITHUB_PERSONAL_ACCESS_TOKEN_HERE" # We will generate this next
-REPO_NAME = "YOUR_GITHUB_USERNAME/sportsbet-mt-ev"
-# --------------------------------------------------
+# --- CONFIGURATION ---
+ODDS_API_KEY = "3f0f2a1c262ac23d9b31145bd1f3b3ed"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN") # Automatically grabbed by GitHub Actions
+REPO_NAME = "cbrizzle111/sportsbet-mt-ev"
+# ---------------------
+
 
 def get_sharp_odds():
     """Fetches Pinnacle lines directly via The Odds API."""
