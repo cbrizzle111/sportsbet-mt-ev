@@ -75,7 +75,7 @@
             </div>
         </div>
     </main>
-    <script>
+       <script>
         let bankroll = parseFloat(localStorage.getItem('bankroll')) || 1000.00;
         let betHistory = JSON.parse(localStorage.getItem('betHistory')) || [];
         let activeBet = null;
@@ -138,7 +138,8 @@
                             <span class="text-xl font-extrabold text-white">$${safeStake.toFixed(2)}</span>
                         </div>
                     </div>
-                    <button onclick="selectBet('${bet.team}', ${softOdds}, ${safeStake})" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-md">
+                    <!-- Safely channel the scraped internal Event ID directly into execution parameters -->
+                    <button onclick="selectBet('${bet.team}', ${softOdds}, ${safeStake}, '${bet.event_id}')" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-sm transition shadow-md">
                         ⚡ Lock & Generate QR Code
                     </button>
                 `;
@@ -181,33 +182,30 @@
             });
         }
 
-        function selectBet(team, odds, stake) {
-    activeBet = { team, odds, stake };
-    document.getElementById('qr-title').innerText = team;
-    document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
-    document.getElementById('qrcode').innerHTML = "";
-    
-    // Fallback static numeric generator mimicking Intralot's sequence layout
-    // (SportID + Generated Game Reference + Market Option Selection Index)
-    let sportId = "53"; 
-    let generatedGameId = Math.floor(10000 + Math.random() * 90000); // 5-digit index dummy
-    let selectionIndex = team.toLowerCase().includes('away') || team.toLowerCase().includes('@') ? "2" : "1";
-    
-    // Combine numbers exactly like the sequence scanned at your terminal
-    let kioskString = `${sportId}${generatedGameId}${selectionIndex}1`;
-    
-    new QRCode(document.getElementById("qrcode"), {
-        text: kioskString,
-        width: 180,
-        height: 180,
-        colorDark : "#000000",
-        colorLight : "#ffffff",
-        correctLevel : QRCode.CorrectLevel.H
-    });
+        function selectBet(team, odds, stake, eventId) {
+            activeBet = { team, odds, stake };
+            document.getElementById('qr-title').innerText = team;
+            document.getElementById('qr-details').innerText = `$${stake.toFixed(2)} Stake @ ${odds > 0 ? '+' + odds : odds}`;
+            document.getElementById('qrcode').innerHTML = "";
+            
+            // --- MODIFIED CONTINUOUS STRING KEY GENERATOR ---
+            let sportId = "53"; // Base MLB Baseball structural code identifier
+            let selectionIndex = team.toLowerCase().includes('away') || team.toLowerCase().includes('@') ? "2" : "1";
+            
+            // Build the numerical string signature precisely matched to your scanned Intralot layout
+            let kioskString = `${sportId}${eventId}${selectionIndex}1`;
+            
+            new QRCode(document.getElementById("qrcode"), {
+                text: kioskString,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
 
-    document.getElementById('qr-modal').classList.remove('hidden');
-}
-
+            document.getElementById('qr-modal').classList.remove('hidden');
+        }
 
         function confirmBet() {
             if (activeBet) {
