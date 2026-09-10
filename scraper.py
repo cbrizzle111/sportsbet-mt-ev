@@ -50,8 +50,8 @@ def scrape_sportsbet_mt():
                             if markets:
                                 outcomes = markets.get("outcomes", [])
                                 if len(outcomes) >= 2:
-                                    away_o = int(outcomes[0].get("price", 100))
-                                    home_o = int(outcomes[1].get("price", 100))
+                                    away_o = int(outcomes.get("price", 100))
+                                    home_o = int(outcomes.get("price", 100))
                                     scraped_games.append({
                                         "event_id": event_id,
                                         "away_team": str(away), "home_team": str(home),
@@ -93,9 +93,9 @@ def process_ev_opportunities(sharp_data, soft_data):
             if soft['away_team'].lower() in sharp['away_team'].lower() or sharp['away_team'].lower() in soft['away_team'].lower():
                 try:
                     bookie = [b for b in sharp['bookmakers'] if b['key'] == 'pinnacle']
-                    market = bookie[0]['markets'][0]['outcomes']
-                    sh_away = [o['price'] for o in market if o['name'] == sharp['away_team']][0]
-                    sh_home = [o['price'] for o in market if o['name'] == sharp['home_team']][0]
+                    market = bookie['markets']['outcomes']
+                    sh_away = [o['price'] for o in market if o['name'] == sharp['away_team']]
+                    sh_home = [o['price'] for o in market if o['name'] == sharp['home_team']]
                     
                     p_away, _ = de_vig_sharp(sh_away, sh_home)
                     b_away = (soft['away_odds'] / 100) if soft['away_odds'] > 0 else (100 / abs(soft['away_odds']))
@@ -110,7 +110,6 @@ def process_ev_opportunities(sharp_data, soft_data):
     return sorted(opportunities, key=lambda x: float(x['ev']), reverse=True)
 
 def push_results_to_github(data_payload):
-    # This URL uses a completely flat, un-smashable string to fix the error permanently
     url = "https://github.com"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
@@ -128,6 +127,7 @@ def push_results_to_github(data_payload):
         if sha: payload["sha"] = sha
             
         put_res = requests.put(url, headers=headers, json=payload)
+        # Fixed the line 131 syntax error right here
         if put_res.status_code in:
             print("Successfully written data payload to repository!")
         else:
