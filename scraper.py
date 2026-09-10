@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 # --- CONFIGURATION (Handled safely via GitHub Cloud settings) ---
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_NAME = "YOUR_GITHUB_USERNAME/sportsbet-mt-ev"  # <-- Change this to your exact profile name
+REPO_NAME = "cbrizzle111/sportsbet-mt-ev"  # <-- Change this to your exact profile name
 # ------------------------------------------------------------------
 
 def get_sharp_odds():
