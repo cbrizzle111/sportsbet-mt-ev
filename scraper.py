@@ -7,16 +7,14 @@ from playwright.sync_api import sync_playwright
 # --- CONFIGURATION (Fully locked and secured) ---
 ODDS_API_KEY = os.environ.get("ODDS_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-REPO_NAME = "cbrizzle111/sportsbet-mt-ev"  # Fully updated with your username
+REPO_NAME = "cbrizzle111/sportsbet-mt-ev"
 # ------------------------------------------------------------------
 
 def get_sharp_odds():
     """Fetches lines from Pinnacle with a fixed url schema."""
     try:
-        # Using a fixed URL string structure to completely avoid concatenation typos
         url = f"https://the-odds-api.com{ODDS_API_KEY}"
         response = requests.get(url)
-        
         if response.status_code == 200:
             return response.json()
         else:
@@ -29,7 +27,6 @@ def get_sharp_odds():
 def scrape_sportsbet_mt():
     """Intercepts raw data packets straight out of the server connection."""
     scraped_games = []
-    
     with sync_playwright() as p:
         try:
             browser = p.chromium.launch(headless=True)
@@ -44,21 +41,18 @@ def scrape_sportsbet_mt():
                             event_id = str(ev.get("id", ev.get("eventId", "")))
                             away = ev.get("awayTeam", {}).get("name", ev.get("away", ""))
                             home = ev.get("homeTeam", {}).get("name", ev.get("home", ""))
-                            
                             markets = ev.get("markets", [])
                             if markets:
                                 outcomes = markets.get("outcomes", [])
                                 if len(outcomes) >= 2:
                                     away_o = int(outcomes[0].get("price", 100))
                                     home_o = int(outcomes[1].get("price", 100))
-                                    
                                     scraped_games.append({
                                         "event_id": event_id,
                                         "away_team": str(away), "home_team": str(home),
                                         "away_odds": away_o, "home_odds": home_o
                                     })
-                    except Exception:
-                        pass
+                    except Exception: pass
 
             page.on("response", handle_response)
             page.goto("https://sportsbetmontana.com", wait_until="networkidle")
@@ -66,7 +60,6 @@ def scrape_sportsbet_mt():
             browser.close()
         except Exception as e:
             print(f"Sportsbook scraper bypass notice: {e}")
-            
     return scraped_games
 
 def de_vig_sharp(sharp_away, sharp_home):
@@ -95,7 +88,7 @@ def process_ev_opportunities(sharp_data, soft_data):
             if soft['away_team'].lower() in sharp['away_team'].lower() or sharp['away_team'].lower() in soft['away_team'].lower():
                 try:
                     bookie = [b for b in sharp['bookmakers'] if b['key'] == 'pinnacle']
-                    market = bookie['markets'][0]['outcomes']
+                    market = bookie[0]['markets'][0]['outcomes']
                     sh_away = [o['price'] for o in market if o['name'] == sharp['away_team']][0]
                     sh_home = [o['price'] for o in market if o['name'] == sharp['home_team']][0]
                     
@@ -112,9 +105,12 @@ def process_ev_opportunities(sharp_data, soft_data):
     return sorted(opportunities, key=lambda x: float(x['ev']), reverse=True)
 
 def push_results_to_github(data_payload):
-    # Fixed the missing forward slash after ://github.com here
-    url = f"https://://github.com/repos/{REPO_NAME}/contents/live_odds.json"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+    # Using the exact GitHub API structure explicitly to guarantee a correct URL
+    url = f"https://github.com{REPO_NAME}/contents/live_odds.json"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
     
     try:
         res = requests.get(url, headers=headers)
@@ -126,8 +122,11 @@ def push_results_to_github(data_payload):
         payload = {"message": "Automated update: Fresh odds synced", "content": encoded_content}
         if sha: payload["sha"] = sha
             
-        requests.put(url, headers=headers, json=payload)
-        print("Successfully written data payload to repository!")
+        put_res = requests.put(url, headers=headers, json=payload)
+        if put_res.status_code in [200, 201]:
+            print("Successfully written data payload to repository!")
+        else:
+            print(f"Failed writing data to GitHub. Status code: {put_res.status_code}")
     except Exception as e:
         print(f"Error syncing data payload: {e}")
 
